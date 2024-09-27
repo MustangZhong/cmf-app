@@ -91,7 +91,21 @@ class NavMenuModel extends Model
                 $href = cmf_url($href['action'], $href['param']);
             } else {
                 if ($hrefOld == "home") {
-                    $href = request()->root() . "/";
+                    $app     = app();
+                    $langSet = '';
+                    if ($app->lang->getLangSet() != $app->lang->defaultLangSet()) {
+                        $langConfig = $app->lang->getConfig();
+                        if (!empty($langConfig['home_multi_lang'])) {
+                            $langSet = $app->lang->getLangSet();
+                            if (!empty($langConfig['lang_alias'][$langSet])) {
+                                $langSet = $langConfig['lang_alias'][$langSet] . '/';
+                            } else {
+                                $langSet = $langSet . '/';
+                            }
+                        }
+                    }
+
+                    $href = request()->root() . "/" . $langSet;
                 } else {
                     $href = $hrefOld;
                 }

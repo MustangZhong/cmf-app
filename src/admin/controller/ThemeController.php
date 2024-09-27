@@ -10,6 +10,7 @@
 // +----------------------------------------------------------------------
 namespace app\admin\controller;
 
+use app\admin\model\ThemeFileI18nModel;
 use app\admin\model\ThemeFileModel;
 use cmf\controller\AdminBaseController;
 use app\admin\model\ThemeModel;
@@ -259,8 +260,9 @@ class ThemeController extends AdminBaseController
      */
     public function fileSetting()
     {
-        $tab    = $this->request->param('tab', 'widget');
-        $fileId = $this->request->param('file_id', 0, 'intval');
+        $tab         = $this->request->param('tab', 'widget');
+        $fileId      = $this->request->param('file_id', 0, 'intval');
+        $contentLang = $this->request->param('admin_content_lang', cmf_current_home_lang());
         if (empty($fileId)) {
             $file = $this->request->param('file');
             $this->assign('fileName', $file);
@@ -274,6 +276,7 @@ class ThemeController extends AdminBaseController
 
         } else {
             $file  = ThemeFileModel::where('id', $fileId)->find();
+            $theme = $file['theme'];
             $files = ThemeFileModel::where('theme', $file['theme'])
                 ->where(function ($query) use ($fileId) {
                     $query->where('id', $fileId)->whereOr('is_public', 1);
@@ -281,6 +284,13 @@ class ThemeController extends AdminBaseController
             $this->assign('fileName', $file['file']);
             $this->assign('theme', $file['theme']);
         }
+
+        $app     = app();
+        $langSet = $app->lang->getLangSet();
+        $app->lang->load([
+            WEB_ROOT . "themes/$theme/public/lang/$langSet.php",
+            WEB_ROOT . "themes/$theme/public/lang/$langSet/admin.php",
+        ]);
 
         $tpl     = 'file_widget_setting';
         $hasFile = false;
@@ -300,7 +310,21 @@ class ThemeController extends AdminBaseController
                 $hasWidget = true;
             }
 
+            if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+                $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $mFile['id'])->where('lang', $contentLang)->find();
+                if (!empty($findThemeFileI18n)) {
+                    $mFile['more'] = $findThemeFileI18n['more'];
+                }
+            }
+
             $files[$key] = $mFile;
+        }
+
+        if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+            $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $file['id'])->where('lang', $contentLang)->find();
+            if (!empty($findThemeFileI18n)) {
+                $file['more'] = $findThemeFileI18n['more'];
+            }
         }
 
         $this->assign('tab', $tab);
@@ -335,15 +359,30 @@ class ThemeController extends AdminBaseController
      */
     public function fileArrayData()
     {
-        $tab        = $this->request->param('tab', 'widget');
-        $varName    = $this->request->param('var', '');
-        $widgetName = $this->request->param('widget', '');
-        $fileId     = $this->request->param('file_id', 0, 'intval');
-        $widgetId   = $this->request->param('widget_id', ''); //自由控件编辑
-        $blockName  = $this->request->param('block_name', '');//自由控件编辑
-        $file       = ThemeFileModel::where('id', $fileId)->find();
-        $oldMore    = $file['more'];
+        $tab         = $this->request->param('tab', 'widget');
+        $varName     = $this->request->param('var', '');
+        $widgetName  = $this->request->param('widget', '');
+        $fileId      = $this->request->param('file_id', 0, 'intval');
+        $widgetId    = $this->request->param('widget_id', ''); //自由控件编辑
+        $blockName   = $this->request->param('block_name', '');//自由控件编辑
+        $contentLang = $this->request->param('admin_content_lang', cmf_current_home_lang());
+        $file        = ThemeFileModel::where('id', $fileId)->find();
+        $oldMore     = $file['more'];
 
+        if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+            $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $fileId)->where('lang', $contentLang)->find();
+            if (!empty($findThemeFileI18n)) {
+                $oldMore = $findThemeFileI18n['more'];
+            }
+        }
+
+        $theme   = $file['theme'];
+        $app     = app();
+        $langSet = $app->lang->getLangSet();
+        $app->lang->load([
+            WEB_ROOT . "themes/$theme/public/lang/$langSet.php",
+            WEB_ROOT . "themes/$theme/public/lang/$langSet/admin.php",
+        ]);
 
         $items = [];
         $item  = [];
@@ -381,6 +420,11 @@ class ThemeController extends AdminBaseController
 
         if ($tab == 'block_widget' && isset($oldMore['widgets_blocks'][$blockName]['widgets'][$widgetId])) {
             $widget = $file->fillBlockWidgetValue($blockName, $widgetId);
+            if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+                if (!empty($findThemeFileI18n)) {
+                    $widget = $findThemeFileI18n->fillBlockWidgetValue($blockName, $widgetId);
+                }
+            }
 
             if (!empty($widget['vars'][$varName])) {
                 $mVar = $widget['vars'][$varName];
@@ -422,17 +466,31 @@ class ThemeController extends AdminBaseController
      */
     public function fileArrayDataEdit()
     {
-        $tab        = $this->request->param('tab', 'widget');
-        $varName    = $this->request->param('var');
-        $widgetName = $this->request->param('widget', '');
-        $fileId     = $this->request->param('file_id', 0, 'intval');
-        $widgetId   = $this->request->param('widget_id', ''); //自由控件编辑
-        $blockName  = $this->request->param('block_name', '');//自由控件编辑
-        $itemIndex  = $this->request->param('item_index', '');
+        $tab         = $this->request->param('tab', 'widget');
+        $varName     = $this->request->param('var');
+        $widgetName  = $this->request->param('widget', '');
+        $fileId      = $this->request->param('file_id', 0, 'intval');
+        $widgetId    = $this->request->param('widget_id', ''); //自由控件编辑
+        $blockName   = $this->request->param('block_name', '');//自由控件编辑
+        $itemIndex   = $this->request->param('item_index', '');
+        $contentLang = $this->request->param('admin_content_lang', cmf_current_home_lang());
+        $file        = ThemeFileModel::where('id', $fileId)->find();
+        $oldMore     = $file['more'];
 
-        $file = ThemeFileModel::where('id', $fileId)->find();
+        if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+            $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $fileId)->where('lang', $contentLang)->find();
+            if (!empty($findThemeFileI18n)) {
+                $oldMore = $findThemeFileI18n['more'];
+            }
+        }
 
-        $oldMore = $file['more'];
+        $theme   = $file['theme'];
+        $app     = app();
+        $langSet = $app->lang->getLangSet();
+        $app->lang->load([
+            WEB_ROOT . "themes/$theme/public/lang/$langSet.php",
+            WEB_ROOT . "themes/$theme/public/lang/$langSet/admin.php",
+        ]);
 
         $items = [];
         $item  = [];
@@ -484,6 +542,11 @@ class ThemeController extends AdminBaseController
 
         if ($tab == 'block_widget' && isset($oldMore['widgets_blocks'][$blockName]['widgets'][$widgetId])) {
             $widget = $file->fillBlockWidgetValue($blockName, $widgetId);
+            if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+                if (!empty($findThemeFileI18n)) {
+                    $widget = $findThemeFileI18n->fillBlockWidgetValue($blockName, $widgetId);
+                }
+            }
             if (!empty($widget['vars'][$varName])) {
                 $mVar = $widget['vars'][$varName];
                 if (is_array($mVar['value'])) {
@@ -580,7 +643,7 @@ class ThemeController extends AdminBaseController
                         $validate = new Validate();
                         $validate->rule($rules);
                         $validate->message($messages);
-                        $result   = $validate->check($post['item']);
+                        $result = $validate->check($post['item']);
                         if (!$result) {
                             $this->error($validate->getError());
                         }
@@ -625,7 +688,7 @@ class ThemeController extends AdminBaseController
                                 $validate = new Validate();
                                 $validate->rule($rules);
                                 $validate->message($messages);
-                                $result   = $validate->check($post['item']);
+                                $result = $validate->check($post['item']);
                                 if (!$result) {
                                     $this->error($validate->getError());
                                 }
@@ -672,7 +735,7 @@ class ThemeController extends AdminBaseController
                             $validate = new Validate();
                             $validate->rule($rules);
                             $validate->message($messages);
-                            $result   = $validate->check($post['item']);
+                            $result = $validate->check($post['item']);
                             if (!$result) {
                                 $this->error($validate->getError());
                             }
@@ -842,7 +905,7 @@ class ThemeController extends AdminBaseController
                         $validate = new Validate();
                         $validate->rule($rules);
                         $validate->message($messages);
-                        $result   = $validate->check($post['vars']);
+                        $result = $validate->check($post['vars']);
                         if (!$result) {
                             $this->error($validate->getError());
                         }
@@ -886,7 +949,7 @@ class ThemeController extends AdminBaseController
                             }
 
                             if ($widget['display']) {
-                                $validate   = new Validate();
+                                $validate = new Validate();
                                 $validate->rule($rules);
                                 $validate->message($messages);
                                 $widgetVars = empty($post['widget_vars'][$mWidgetName]) ? [] : $post['widget_vars'][$mWidgetName];
@@ -1098,7 +1161,7 @@ class ThemeController extends AdminBaseController
      */
     public function widgetsSort()
     {
-        $files = $this->request->param();
+        $files   = $this->request->param();
         $widgets = [];
 
         foreach ($files as $fileId => $widgetsBlocks) {
@@ -1164,20 +1227,56 @@ class ThemeController extends AdminBaseController
      */
     public function widgetSetting()
     {
-        $widgetId  = $this->request->param('widget_id', '');
-        $blockName = $this->request->param('block_name', '');
-        $fileId    = $this->request->param('file_id', 0, 'intval');
+        $widgetId    = $this->request->param('widget_id', '');
+        $blockName   = $this->request->param('block_name', '');
+        $fileId      = $this->request->param('file_id', 0, 'intval');
+        $contentLang = $this->request->param('admin_content_lang', cmf_current_home_lang());
+        $file        = ThemeFileModel::where('id', $fileId)->find();
 
-        $file = ThemeFileModel::where('id', $fileId)->find();
+        if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+            $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $fileId)->where('lang', $contentLang)->find();
+        }
 
-        $oldMore = $file['more'];
-        $items   = [];
-        $item    = [];
+        $theme   = $file['theme'];
+        $app     = app();
+        $langSet = $app->lang->getLangSet();
+        $app->lang->load([
+            WEB_ROOT . "themes/$theme/public/lang/$langSet.php",
+            WEB_ROOT . "themes/$theme/public/lang/$langSet/admin.php",
+        ]);
+
+        if (empty($findThemeFileI18n)) {
+            $oldMore = $file['more'];
+        } else {
+            $oldMore = $findThemeFileI18n['more'];
+        }
+        $items = [];
+        $item  = [];
 
         $widgetWithValue = $oldMore['widgets_blocks'][$blockName]['widgets'][$widgetId];
         $theme           = $file['theme'];
-        $widgetManifest  = file_get_contents(WEB_ROOT . "themes/$theme/public/widgets/{$widgetWithValue['name']}/manifest.json");
-        $widget          = json_decode($widgetManifest, true);
+
+        if (!empty($widgetWithValue['public_widget_id'])) {
+            $publicWidgetId = $widgetWithValue['public_widget_id'];
+            $publicFile     = ThemeFileModel::where(['file' => 'public/config', 'theme' => $theme])->find();
+            $publicFileMore = $publicFile['more'];
+            if (!empty($publicFileMore['widgets_blocks']['public']['widgets'][$publicWidgetId])) {
+                if (!empty($contentLang) && $contentLang != $this->app->lang->defaultLangSet()) {
+                    $findThemeFileI18n = ThemeFileI18nModel::where('file_id', $publicFile['id'])->where('lang', $contentLang)->find();
+                    if (!empty($findThemeFileI18n)) {
+                        $publicFileMore = $findThemeFileI18n['more'];
+                        if (!empty($publicFileMore['widgets_blocks']['public']['widgets'][$publicWidgetId])) {
+                            $widgetWithValue = $publicFileMore['widgets_blocks']['public']['widgets'][$publicWidgetId];
+                        }
+                    }
+                } else {
+                    $widgetWithValue = $publicFileMore['widgets_blocks']['public']['widgets'][$publicWidgetId];
+                }
+            }
+        }
+
+        $widgetManifest = file_get_contents(WEB_ROOT . "themes/$theme/public/widgets/{$widgetWithValue['name']}/manifest.json");
+        $widget         = json_decode($widgetManifest, true);
 
         $defaultCss = [
             "margin-top"    => [
@@ -1310,6 +1409,117 @@ class ThemeController extends AdminBaseController
         ThemeFileModel::where('id', $fileId)->update(['more' => $more]);
         cmf_clear_cache();
         $this->success(lang('EDIT_SUCCESS'));
+    }
+
+
+    /**
+     * 模板文件自由控件列表
+     * @adminMenu(
+     *     'name'   => '模板文件自由控件列表',
+     *     'parent' => 'index',
+     *     'display'=> false,
+     *     'hasView'=> true,
+     *     'order'  => 10000,
+     *     'icon'   => '',
+     *     'remark' => '模板文件自由控件列表',
+     *     'param'  => ''
+     * )
+     */
+    public function fileWidgets()
+    {
+        $file   = $this->request->param('file');
+        $fileId = 0;
+        if (!is_numeric($file)) {
+            $fileName = $file;
+            $theme    = $this->request->param('theme');
+            $file     = ThemeFileModel::where(['file' => $file, 'theme' => $theme])->find();
+        } else {
+            $fileId   = $file;
+            $file     = ThemeFileModel::where('id', $fileId)->find();
+            $fileName = $file['file'];
+        }
+
+
+        if (empty($file)) {
+            $this->error('未找到模板文件！');
+        } else {
+            $fileId  = $file['id'];
+            $theme   = $file['theme'];
+            $action  = $file['action'];
+            $dirs    = cmf_scan_dir(WEB_ROOT . "themes/$theme/public/widgets/*", GLOB_ONLYDIR);
+            $widgets = [];
+            foreach ($dirs as $widgetName) {
+                $widgetDir    = WEB_ROOT . "themes/$theme/public/widgets/$widgetName/";
+                $manifestFile = $widgetDir . 'manifest.json';
+                if (is_file($manifestFile)) {
+                    $widgetInfo = json_decode(file_get_contents($manifestFile), true);
+                    if (!empty($widgetInfo) && (empty($widgetInfo['action']) || $widgetInfo['action'] === $action)) {
+                        $widgets[] = $widgetInfo;
+                    }
+                }
+            }
+
+            $this->assign('widgets', $widgets);
+        }
+
+
+        return $this->fetch();
+
+    }
+
+    /**
+     * 模板文件全局自由控件列表
+     * @adminMenu(
+     *     'name'   => '模板文件全局自由控件列表',
+     *     'parent' => 'index',
+     *     'display'=> false,
+     *     'hasView'=> true,
+     *     'order'  => 10000,
+     *     'icon'   => '',
+     *     'remark' => '模板文件全局自由控件列表',
+     *     'param'  => ''
+     * )
+     */
+    public function filePublicWidgets()
+    {
+        $file   = $this->request->param('file');
+        $fileId = 0;
+        if (!is_numeric($file)) {
+            $fileName = $file;
+            $theme    = $this->request->param('theme');
+            $file     = ThemeFileModel::where(['file' => $file, 'theme' => $theme])->find();
+        } else {
+            $fileId   = $file;
+            $file     = ThemeFileModel::where('id', $fileId)->find();
+            $fileName = $file['file'];
+        }
+
+
+        if (empty($file)) {
+            $this->error('未找到模板文件！');
+        } else {
+            $fileId     = $file['id'];
+            $theme      = $file['theme'];
+            $publicFile = ThemeFileModel::where(['file' => 'public/config', 'theme' => $theme])->find();
+            $widgets    = [];
+            if (!empty($publicFile)) {
+                $more = $publicFile['more'];
+                if (!empty($more['widgets_blocks']['public'])) {
+                    $widgetBlock = $more['widgets_blocks']['public'];
+                    if (!empty($widgetBlock['widgets'])) {
+                        foreach ($widgetBlock['widgets'] as $widgetId => $widget) {
+                            $widgets[$widgetId] = $widget;
+                        }
+                    }
+                }
+            }
+
+            $this->assign('widgets', $widgets);
+        }
+
+
+        return $this->fetch();
+
     }
 
 

@@ -16,9 +16,10 @@ use app\admin\model\SlideModel;
 
 class EmailService
 {
-    public static function send($address, $subject, $message, $attachments = [])
+    public static function send($address, $subject, $message, $attachments = [], $adminId = 0)
     {
-        $adminId     = cmf_get_current_admin_id();
+
+        $adminId     = $adminId == 0 ? cmf_get_current_admin_id() : $adminId;
         $smtpSetting = cmf_get_option('admin_smtp_setting_' . $adminId);
         if (empty($smtpSetting)) {
             return ["error" => 1, "message" => '没有邮箱配置！'];

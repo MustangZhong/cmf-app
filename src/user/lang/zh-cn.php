@@ -10,7 +10,7 @@
 // +----------------------------------------------------------------------
 return [
     'USERNAME'                      => '用户名',
-    'NICENAME'                      => '昵称',
+    'Nickname'                      => '昵称',
     'AVATAR'                        => '头像',
     'EMAIL'                         => '邮箱',
     'REGISTRATION_TIME'             => '注册时间',
@@ -65,6 +65,18 @@ return [
     'User ID'                       => '用户ID',
     'UPLOAD_TYPE_SETTING_ERROR'     => '上传文件类型配置错误！',
     'Collection succeeded'          => '收藏成功！',
-    'No such user found'            => '查无此人！'
+    'No such user found'            => '查无此人！',
+    'User action'                   => '用户操作',
+    'Score change'                  => '积分更改',
+    'Coin change'                   => '金币更改',
+    'Number of rewards/period'      => '奖励次数/周期',
+    'Not limited'                   => '不限',
+    'X times'                       => '{:times}次',
+    'SCORE_CHANGE_HELP_TEXT'        => '用户操作时积分更改，可以为负',
+    'COIN_CHANGE_HELP_TEXT'         => '用户操作时金币更改，可以为负',
+    'Number of rewards'             => '奖励次数',
+    'Reward cycle'                  => '奖励周期',
+    'Reward cycle type'             => '周期类型',
+
 
 ];
